@@ -1,0 +1,63 @@
+name: Heptabase Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      md_path:
+        description: "Markdown file path relative to repository root"
+        required: true
+        default: "reports/heptabase_export_md/结果卡模板（最短版）__2026-03-14.md"
+      import_mode:
+        description: "insert, update(existing title), or skip_existing"
+        required: true
+        type: choice
+        options:
+          - insert
+          - update
+          - skip_existing
+        default: insert
+      dry_run:
+        description: "Plan only; do not write to Heptabase DB"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  import-to-heptabase:
+    runs-on: [self-hosted, windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Import markdown into local Heptabase DB
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $mode = "${{ inputs.import_mode }}"
+          $dryRun = "${{ inputs.dry_run }}"
+          $mdPath = "${{ inputs.md_path }}"
+          $flags = @()
+
+          if ($mode -eq "update") {
+            $flags += "--upsert-title"
+          } elseif ($mode -eq "skip_existing") {
+            $flags += "--skip-existing"
+          }
+
+          if ($dryRun -eq "true") {
+            $flags += "--dry-run"
+          }
+
+          Write-Host "Import file: $mdPath"
+          Write-Host "Import mode: $mode"
+          Write-Host "Dry run: $dryRun"
+
+          python scripts/import_md_to_heptabase.py $mdPath @flags

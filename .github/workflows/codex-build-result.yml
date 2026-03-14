@@ -1,0 +1,65 @@
+name: Codex Build Result
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_name:
+        description: "Task short name for result filename"
+        required: false
+        default: "manual-task"
+      result_dir:
+        description: "Output directory for generated result markdown"
+        required: false
+        default: "heptabase-sync/results"
+  schedule:
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build-result:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate result card markdown
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          out_dir="${{ github.event.inputs.result_dir || 'heptabase-sync/results' }}"
+          task_name="${{ github.event.inputs.task_name || 'scheduled-task' }}"
+          today="$(date +%F)"
+          out_file="${out_dir}/${today}-${task_name}-result.md"
+
+          mkdir -p "${out_dir}"
+
+          cat > "${out_file}" <<'EOF'
+# 结果
+
+## 结论
+[这次完成了什么]
+
+## 已完成
+- ...
+- ...
+
+## 产出
+- ...
+
+## 风险 / 阻塞
+- ...
+
+## 下一步
+- ...
+EOF
+
+          echo "Generated: ${out_file}"
+
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-result-markdown
+          path: ${{ github.event.inputs.result_dir || 'heptabase-sync/results' }}/*.md

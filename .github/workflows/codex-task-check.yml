@@ -1,0 +1,43 @@
+name: Codex Task Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-cards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate card templates
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          files=(
+            "reports/heptabase_export_md/任务卡模板（最短版）__2026-03-13.md"
+            "reports/heptabase_export_md/结果卡模板（最短版）__2026-03-14.md"
+            "reports/heptabase_export_md/Codex 运行卡（短版）__2026-03-13.md"
+          )
+
+          for f in "${files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "Missing required template: $f"
+              exit 1
+            fi
+          done
+
+          grep -q "^## 目标" "reports/heptabase_export_md/任务卡模板（最短版）__2026-03-13.md"
+          grep -q "^## 完成标准" "reports/heptabase_export_md/任务卡模板（最短版）__2026-03-13.md"
+          grep -q "^## 结论" "reports/heptabase_export_md/结果卡模板（最短版）__2026-03-14.md"
+          grep -q "^## 下一步" "reports/heptabase_export_md/结果卡模板（最短版）__2026-03-14.md"
+          grep -q "^## 必须停" "reports/heptabase_export_md/Codex 运行卡（短版）__2026-03-13.md"
+
+          echo "Template validation passed."

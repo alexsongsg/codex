@@ -1,0 +1,105 @@
+name: Heptabase Runner Self Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  self-check:
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run local readiness checks
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $dbPath = "C:\Users\vowin\AppData\Roaming\project-meta\hepta.db"
+          $importScript = "scripts/import_md_to_heptabase.py"
+          $sampleMd = "reports/heptabase_export_md/Codex-Heptabase-Entry-Nav-2026-03-14.md"
+          $backupDir = "reports/heptabase_backup"
+          $logDir = "reports/heptabase_import_logs"
+
+          $checks = @()
+          $checks += [pscustomobject]@{ check = "python_available"; pass = $true; detail = (python --version) }
+          $checks += [pscustomobject]@{ check = "import_script_exists"; pass = (Test-Path $importScript); detail = $importScript }
+          $checks += [pscustomobject]@{ check = "heptabase_db_exists"; pass = (Test-Path $dbPath); detail = $dbPath }
+          $checks += [pscustomobject]@{ check = "sample_markdown_exists"; pass = (Test-Path $sampleMd); detail = $sampleMd }
+
+          New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $checks += [pscustomobject]@{ check = "backup_dir_writable"; pass = (Test-Path $backupDir); detail = $backupDir }
+          $checks += [pscustomobject]@{ check = "log_dir_writable"; pass = (Test-Path $logDir); detail = $logDir }
+
+          if (-not ((Test-Path $importScript) -and (Test-Path $sampleMd))) {
+            throw "Pre-check failed: import script or sample markdown is missing."
+          }
+
+          $dryRunOutput = python $importScript $sampleMd --dry-run
+          $dryRunOutput | Out-File -FilePath runner-self-check-dry-run.json -Encoding utf8
+          $checks += [pscustomobject]@{ check = "dry_run_executes"; pass = $true; detail = "import script dry-run completed" }
+
+          $failed = @($checks | Where-Object { -not $_.pass })
+          $summary = [pscustomobject]@{
+            timestamp = (Get-Date).ToString("s")
+            checks = $checks
+            failed_count = $failed.Count
+            ok = ($failed.Count -eq 0)
+          }
+          $summary | ConvertTo-Json -Depth 6 | Out-File -FilePath runner-self-check-summary.json -Encoding utf8
+
+          if ($failed.Count -gt 0) {
+            throw "Runner self-check failed. See runner-self-check-summary.json"
+          }
+
+      - name: Upload self-check artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heptabase-runner-self-check
+          path: |
+            runner-self-check-summary.json
+            runner-self-check-dry-run.json
+
+      - name: Write run summary
+        if: always()
+        shell: powershell
+        run: |
+          $status = "${{ job.status }}"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Heptabase Runner Self Check"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Status: $status"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- DB path checked: C:\Users\vowin\AppData\Roaming\project-meta\hepta.db"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Script checked: scripts/import_md_to_heptabase.py"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Artifact: heptabase-runner-self-check"
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Heptabase Runner Self Check failed (#${context.runNumber})`;
+            const body = [
+              "Heptabase Runner Self Check run failed.",
+              "",
+              `- Repository: ${context.repo.owner}/${context.repo.repo}`,
+              `- Run ID: ${context.runId}`,
+              `- Run URL: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["automation", "runner", "failure"]
+            });

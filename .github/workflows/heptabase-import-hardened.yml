@@ -1,0 +1,156 @@
+name: Heptabase Import Hardened
+
+on:
+  workflow_dispatch:
+    inputs:
+      md_path:
+        description: "Markdown file path relative to repository root"
+        required: true
+        default: "reports/heptabase_export_md/Codex-Heptabase-Entry-Nav-2026-03-14.md"
+      import_mode:
+        description: "insert, update(existing title), or skip_existing"
+        required: true
+        type: choice
+        options:
+          - insert
+          - update
+          - skip_existing
+        default: insert
+      dry_run:
+        description: "Plan only; do not write to Heptabase DB"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: heptabase-import
+  cancel-in-progress: false
+
+jobs:
+  import-to-heptabase:
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 15
+    environment: heptabase-local
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate input path and mode
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $mdPath = "${{ inputs.md_path }}"
+          $mode = "${{ inputs.import_mode }}"
+          $dryRun = "${{ inputs.dry_run }}"
+
+          if ([string]::IsNullOrWhiteSpace($mdPath)) {
+            throw "md_path is required."
+          }
+
+          # Whitelist: import only markdown/txt from reports/heptabase_export_md/
+          if ($mdPath -notmatch '^reports/heptabase_export_md/.+\.(md|txt)$') {
+            throw "md_path must match reports/heptabase_export_md/*.md or *.txt"
+          }
+
+          if ($mode -notin @("insert","update","skip_existing")) {
+            throw "Unsupported import_mode: $mode"
+          }
+
+          Write-Host "Validated md_path=$mdPath mode=$mode dry_run=$dryRun"
+
+      - name: Run import script
+        id: run_import
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $mode = "${{ inputs.import_mode }}"
+          $dryRun = "${{ inputs.dry_run }}"
+          $mdPath = "${{ inputs.md_path }}"
+          $flags = @()
+
+          if ($mode -eq "update") {
+            $flags += "--upsert-title"
+          } elseif ($mode -eq "skip_existing") {
+            $flags += "--skip-existing"
+          }
+
+          if ($dryRun -eq "true") {
+            $flags += "--dry-run"
+          }
+
+          $output = python scripts/import_md_to_heptabase.py $mdPath @flags
+          $output | Out-File -FilePath import-result.json -Encoding utf8
+          Write-Host $output
+
+      - name: Upload import result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heptabase-import-result
+          path: import-result.json
+
+      - name: Upload import logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heptabase-import-logs
+          path: reports/heptabase_import_logs/*.csv
+
+      - name: Upload backup snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heptabase-backup-snapshots
+          path: reports/heptabase_backup/*.db
+
+      - name: Write run summary
+        if: always()
+        shell: powershell
+        run: |
+          $status = "${{ job.status }}"
+          $mode = "${{ inputs.import_mode }}"
+          $dryRun = "${{ inputs.dry_run }}"
+          $mdPath = "${{ inputs.md_path }}"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Heptabase Import Hardened"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Status: $status"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Mode: $mode"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Dry run: $dryRun"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- File: $mdPath"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Artifacts: heptabase-import-result, heptabase-import-logs, heptabase-backup-snapshots"
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Heptabase Import failed (#${context.runNumber})`;
+            const body = [
+              "Heptabase Import Hardened run failed.",
+              "",
+              `- Repository: ${context.repo.owner}/${context.repo.repo}`,
+              `- Run ID: ${context.runId}`,
+              `- Run URL: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `- Mode: ${process.env.IMPORT_MODE}`,
+              `- Dry run: ${process.env.DRY_RUN}`,
+              `- File: ${process.env.MD_PATH}`
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["automation", "heptabase", "failure"]
+            });
+        env:
+          IMPORT_MODE: ${{ inputs.import_mode }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MD_PATH: ${{ inputs.md_path }}
