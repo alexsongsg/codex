@@ -79,6 +79,9 @@ jobs:
             "--output-json" "reports/ceo_dashboard/source_latest.json"
             "--history-csv" "reports/ceo_dashboard/revenue_actual_ytd_history.csv"
             "--table-range" "B2:AJ11"
+            "--recognized-row-label-column" "Team"
+            "--recognized-row-label-value" "__NO_SUCH_ROW__"
+
           )
 
           if [[ -n "${as_of_date}" ]]; then
