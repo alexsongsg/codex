@@ -163,6 +163,7 @@ def eval_sum_formula(
     formula: str,
     values: list[list[Any]],
     window: A1Window,
+    depth: int = 0,
 ) -> float:
     match = re.fullmatch(r"\s*=\s*SUM\((.+)\)\s*", formula, re.I)
     if not match:
@@ -181,6 +182,7 @@ def eval_sum_formula(
                     raw = matrix_value_at_a1(values, window, r, c)
                     if raw in ("", None):
                         continue
+                    raw = maybe_eval_formula_number(raw, values=values, window=window, depth=depth + 1)
                     total += parse_number(raw)
             continue
         # token can be a single cell ref or a numeric literal
@@ -188,6 +190,7 @@ def eval_sum_formula(
             row, col = parse_a1_cell_ref(token)
             raw = matrix_value_at_a1(values, window, row, col)
             if raw not in ("", None):
+                raw = maybe_eval_formula_number(raw, values=values, window=window, depth=depth + 1)
                 total += parse_number(raw)
             continue
         except ValueError:
@@ -196,16 +199,23 @@ def eval_sum_formula(
     return total
 
 
-def maybe_eval_formula_number(raw: Any, values: list[list[Any]], window: A1Window | None) -> Any:
+def maybe_eval_formula_number(
+    raw: Any,
+    values: list[list[Any]],
+    window: A1Window | None,
+    depth: int = 0,
+) -> Any:
     if window is None or not isinstance(raw, str):
         return raw
+    if depth > 8:
+        raise ValueError("formula evaluation exceeded recursion limit")
     normalized = raw.lstrip()
     # Some sheet APIs return formulas as "'=SUM(...)".
     if normalized.startswith("'"):
         normalized = normalized[1:].lstrip()
     if not normalized.startswith("="):
         return raw
-    return eval_sum_formula(normalized, values=values, window=window)
+    return eval_sum_formula(normalized, values=values, window=window, depth=depth + 1)
 
 
 def parse_date(value: Any) -> dt.date:
