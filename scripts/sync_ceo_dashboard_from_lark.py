@@ -199,6 +199,15 @@ def eval_sum_formula(
     return total
 
 
+def normalize_formula_text(raw: str) -> str:
+    normalized = raw.lstrip()
+    if normalized.startswith("'"):
+        normalized = normalized[1:].lstrip()
+    if normalized.upper().startswith("SUM("):
+        normalized = "=" + normalized
+    return normalized
+
+
 def maybe_eval_formula_number(
     raw: Any,
     values: list[list[Any]],
@@ -209,10 +218,7 @@ def maybe_eval_formula_number(
         return raw
     if depth > 8:
         raise ValueError("formula evaluation exceeded recursion limit")
-    normalized = raw.lstrip()
-    # Some sheet APIs return formulas as "'=SUM(...)".
-    if normalized.startswith("'"):
-        normalized = normalized[1:].lstrip()
+    normalized = normalize_formula_text(raw)
     if not normalized.startswith("="):
         return raw
     return eval_sum_formula(normalized, values=values, window=window, depth=depth + 1)
