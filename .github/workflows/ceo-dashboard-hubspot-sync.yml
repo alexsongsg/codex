@@ -127,6 +127,105 @@ jobs:
             reports/ceo_dashboard/hubspot_source_latest.json
             reports/ceo_dashboard/hubspot_metrics_history.csv
 
+      - name: Build failure alert context
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from json import JSONDecoder
+          from pathlib import Path
+
+          allowed_regions = {"GKA", "CHN", "SGP", "MYS", "PHL", "THI", "IDO", "LAT"}
+          as_of_input = os.getenv("INPUT_AS_OF_DATE", "").strip()
+          alert = {
+              "ALERT_AS_OF_DATE": as_of_input or "runner date",
+              "ALERT_WON_REVENUE_YTD": "n/a",
+              "ALERT_NEXT_90D_FORECAST": "n/a",
+              "ALERT_NON_CEO_REGIONS": "n/a",
+              "ALERT_OBSERVED_REGIONS": "n/a",
+          }
+
+          p = Path("hubspot-sync-output.json")
+          if p.exists():
+              text = p.read_text(encoding="utf-8")
+              decoder = JSONDecoder()
+              payload = None
+              for i, ch in enumerate(text):
+                  if ch != "{":
+                      continue
+                  try:
+                      payload, _ = decoder.raw_decode(text[i:])
+                      break
+                  except json.JSONDecodeError:
+                      continue
+
+              if isinstance(payload, dict):
+                  alert["ALERT_AS_OF_DATE"] = str(payload.get("as_of_date") or alert["ALERT_AS_OF_DATE"])
+                  totals = ((payload.get("metrics") or {}).get("company_totals") or {})
+                  alert["ALERT_WON_REVENUE_YTD"] = str(totals.get("won_revenue_ytd", "n/a"))
+                  alert["ALERT_NEXT_90D_FORECAST"] = str(totals.get("next_90d_forecast", "n/a"))
+                  rows = ((payload.get("metrics") or {}).get("region_breakdown") or [])
+                  observed = sorted(
+                      {str(r.get("region") or "").strip() for r in rows if r.get("region")}
+                  )
+                  bad = sorted(r for r in observed if r not in allowed_regions)
+                  alert["ALERT_NON_CEO_REGIONS"] = ",".join(bad) if bad else "(none)"
+                  alert["ALERT_OBSERVED_REGIONS"] = ",".join(observed) if observed else "(none)"
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fp:
+              for k, v in alert.items():
+                  fp.write(f"{k}={v}\n")
+          PY
+        env:
+          INPUT_AS_OF_DATE: ${{ github.event.inputs.as_of_date }}
+
+      - name: Notify Slack on failure
+        if: failure()
+        shell: bash
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.CEO_DASHBOARD_ALERT_SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+            echo "Skip failure notification: CEO_DASHBOARD_ALERT_SLACK_WEBHOOK_URL is not configured."
+            exit 0
+          fi
+
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          repo="${{ github.repository }}"
+          status="${{ job.status }}"
+          dry_run="${{ github.event.inputs.dry_run || 'true' }}"
+
+          text=$(
+            cat <<EOF
+          [ALERT] CEO Dashboard HubSpot Sync failed
+          Repository: ${repo}
+          Status: ${status}
+          As-of date: ${ALERT_AS_OF_DATE}
+          Dry run: ${dry_run}
+          won_revenue_ytd: ${ALERT_WON_REVENUE_YTD}
+          next_90d_forecast: ${ALERT_NEXT_90D_FORECAST}
+          non_ceo_regions: ${ALERT_NON_CEO_REGIONS}
+          observed_regions: ${ALERT_OBSERVED_REGIONS}
+          Run URL: ${run_url}
+          EOF
+          )
+          export text
+
+          payload=$(python - <<'PY'
+          import json
+          import os
+          print(json.dumps({"text": os.environ["text"]}))
+          PY
+          )
+
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "${payload}" \
+            "${SLACK_WEBHOOK_URL}" >/dev/null
+
       - name: Write run summary
         if: always()
         shell: bash
@@ -141,4 +240,5 @@ jobs:
             echo "- Required secret: HUBSPOT_PRIVATE_APP_TOKEN"
             echo "- Optional secret: HUBSPOT_QUALIFIED_STAGE_IDS"
             echo "- Optional secret: HUBSPOT_REGION_TARGETS_JSON"
+            echo "- Optional alert secret: CEO_DASHBOARD_ALERT_SLACK_WEBHOOK_URL"
           } >> "$GITHUB_STEP_SUMMARY"
