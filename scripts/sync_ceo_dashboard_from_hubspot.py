@@ -417,6 +417,7 @@ def main() -> int:
         "hubspot_owner_id",
     ]
 
+    warnings: list[str] = []
     try:
         deals = paged_get_objects(
             token=args.hubspot_token,
@@ -424,16 +425,33 @@ def main() -> int:
             properties=deal_props,
             associations=["companies"],
         )
+    except HubSpotApiError as exc:
+        print(f"HubSpot sync failed (deals is required): {exc}", file=sys.stderr)
+        return 1
+
+    try:
         companies = paged_get_objects(
             token=args.hubspot_token,
             object_name="companies",
             properties=company_props,
             associations=None,
         )
+    except HubSpotApiError as exc:
+        companies = []
+        warnings.append(
+            f"companies read failed; continue with UNKNOWN region fallback. detail={exc}"
+        )
+
+    try:
         owners = get_owners(token=args.hubspot_token)
+    except HubSpotApiError as exc:
+        owners = []
+        warnings.append(f"owners read failed; continue without owner names. detail={exc}")
+
+    try:
         pipelines = get_deal_pipelines(token=args.hubspot_token)
     except HubSpotApiError as exc:
-        print(f"HubSpot sync failed: {exc}", file=sys.stderr)
+        print(f"HubSpot sync failed (pipelines is required): {exc}", file=sys.stderr)
         return 1
 
     owner_map = build_owner_map(owners)
@@ -482,7 +500,8 @@ def main() -> int:
         "notes": [
             "Commercial metrics from HubSpot are not finance recognized revenue.",
             "Revenue Actual YTD remains from Lark/Finance source chain.",
-        ],
+        ]
+        + warnings,
     }
 
     if args.dry_run:
