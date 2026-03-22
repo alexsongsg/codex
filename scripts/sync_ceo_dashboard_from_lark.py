@@ -88,7 +88,16 @@ def fetch_sheet_range(
     sheet_range: str,
 ) -> list[list[Any]]:
     encoded_range = urllib.parse.quote(sheet_range, safe="")
-    url = f"{LARK_API_BASE}/sheets/v2/spreadsheets/{spreadsheet_token}/values/{encoded_range}"
+    query = urllib.parse.urlencode(
+        {
+            "valueRenderOption": "ToString",
+            "dateTimeRenderOption": "FormattedString",
+        }
+    )
+    url = (
+        f"{LARK_API_BASE}/sheets/v2/spreadsheets/{spreadsheet_token}/values/{encoded_range}"
+        f"?{query}"
+    )
     headers = {"Authorization": f"Bearer {tenant_access_token}"}
     result = http_json("GET", url, headers=headers)
     return result.get("data", {}).get("valueRange", {}).get("values", []) or []
