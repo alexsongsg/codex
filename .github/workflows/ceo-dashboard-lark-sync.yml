@@ -1,0 +1,113 @@
+name: CEO Dashboard Lark Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "recognized_finals (recommended), cell, or aggregate"
+        required: true
+        default: "recognized_finals"
+        type: choice
+        options:
+          - recognized_finals
+          - cell
+          - aggregate
+      as_of_date:
+        description: "As-of date (YYYY-MM-DD). Leave empty to use runner date."
+        required: false
+        default: ""
+      dry_run:
+        description: "Do not write output files"
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    # Monday-Friday 01:15 UTC
+    - cron: "15 1 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-revenue-actual-ytd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Lark sync
+        shell: bash
+        env:
+          LARK_APP_ID: ${{ secrets.LARK_APP_ID }}
+          LARK_APP_SECRET: ${{ secrets.LARK_APP_SECRET }}
+          LARK_SPREADSHEET_TOKEN: ${{ secrets.LARK_SPREADSHEET_TOKEN }}
+          LARK_SHEET_ID: ${{ secrets.LARK_SHEET_ID }}
+          LARK_REVENUE_CELL: ${{ secrets.LARK_REVENUE_CELL }}
+          LARK_REVENUE_TABLE_RANGE: ${{ secrets.LARK_REVENUE_TABLE_RANGE }}
+          LARK_REVENUE_DATE_COLUMN: ${{ secrets.LARK_REVENUE_DATE_COLUMN }}
+          LARK_REVENUE_AMOUNT_COLUMN: ${{ secrets.LARK_REVENUE_AMOUNT_COLUMN }}
+          CEO_DASHBOARD_CURRENCY: ${{ secrets.CEO_DASHBOARD_CURRENCY }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          [[ -z "${LARK_APP_ID:-}" ]] && missing+=("LARK_APP_ID")
+          [[ -z "${LARK_APP_SECRET:-}" ]] && missing+=("LARK_APP_SECRET")
+          [[ -z "${LARK_SPREADSHEET_TOKEN:-}" ]] && missing+=("LARK_SPREADSHEET_TOKEN")
+          [[ -z "${LARK_SHEET_ID:-}" ]] && missing+=("LARK_SHEET_ID")
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "Missing required secrets: ${missing[*]}"
+            exit 2
+          fi
+
+          mode="${{ github.event.inputs.mode || 'recognized_finals' }}"
+          as_of_date="${{ github.event.inputs.as_of_date }}"
+          dry_run="${{ github.event.inputs.dry_run || 'false' }}"
+
+          args=(
+            "--mode" "${mode}"
+            "--metric-name" "Revenue Actual YTD"
+            "--output-json" "reports/ceo_dashboard/source_latest.json"
+            "--history-csv" "reports/ceo_dashboard/revenue_actual_ytd_history.csv"
+          )
+
+          if [[ -n "${as_of_date}" ]]; then
+            args+=("--as-of-date" "${as_of_date}")
+          fi
+          if [[ "${dry_run}" == "true" ]]; then
+            args+=("--dry-run")
+          fi
+
+          python scripts/sync_ceo_dashboard_from_lark.py "${args[@]}" | tee sync-output.json
+
+      - name: Upload sync outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceo-dashboard-lark-sync
+          path: |
+            sync-output.json
+            reports/ceo_dashboard/source_latest.json
+            reports/ceo_dashboard/revenue_actual_ytd_history.csv
+
+      - name: Write run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## CEO Dashboard Lark Sync"
+            echo "- Status: ${{ job.status }}"
+            echo "- Mode: ${{ github.event.inputs.mode || 'cell' }}"
+            echo "- As-of date: ${{ github.event.inputs.as_of_date || 'runner date' }}"
+            echo "- Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
+            echo "- Primary metric: Revenue Actual YTD"
+            echo "- Output JSON: reports/ceo_dashboard/source_latest.json"
+            echo "- History CSV: reports/ceo_dashboard/revenue_actual_ytd_history.csv"
+          } >> "$GITHUB_STEP_SUMMARY"
