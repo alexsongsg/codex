@@ -76,24 +76,8 @@ jobs:
   "--metric-name" "Revenue Actual YTD"
   "--output-json" "reports/ceo_dashboard/source_latest.json"
   "--history-csv" "reports/ceo_dashboard/revenue_actual_ytd_history.csv"
-  "--table-range" "A2:AJ11"
-  "--recognized-row-label-value" "All Countries"
 )
 
-
-          if [[ -n "${as_of_date}" ]]; then
-            args+=("--as-of-date" "${as_of_date}")
-          fi
-          if [[ "${dry_run}" == "true" ]]; then
-            args+=("--dry-run")
-          fi
-
-          python scripts/sync_ceo_dashboard_from_lark.py "${args[@]}" | tee sync-output.json
-
-      - name: Render dashboard entry HTML
-        if: always()
-        shell: bash
-        run: |
           set -euo pipefail
           python scripts/render_ceo_dashboard_index_html.py \
             --lark-json "reports/ceo_dashboard/source_latest.json" \
