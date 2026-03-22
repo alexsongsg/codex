@@ -1,0 +1,279 @@
+{
+  "dashboard": "CEO Dashboard",
+  "source": "hubspot",
+  "version": "v1",
+  "generated_at_utc": "2026-03-22T03:20:46+00:00",
+  "as_of_date": "2026-03-22",
+  "accessed_objects": {
+    "deals": 3523,
+    "companies": 56525,
+    "owners": 33,
+    "pipelines": 13
+  },
+  "config": {
+    "qualified_stage_ids": [
+      "1170146447",
+      "1170146448",
+      "1170146449",
+      "1170146450",
+      "1170146451",
+      "11969832",
+      "11969833",
+      "11969834",
+      "11969835",
+      "11969836",
+      "11986467",
+      "11986468",
+      "11986469",
+      "11986470",
+      "11986471",
+      "1216685917",
+      "1216685918",
+      "1216685919",
+      "1216685920",
+      "1216685921",
+      "1282361991",
+      "1282361992",
+      "1282361993",
+      "1282361994",
+      "1282361995",
+      "13006655",
+      "13006656",
+      "13006657",
+      "13006658",
+      "13006661",
+      "16984130",
+      "16984131",
+      "16984132",
+      "16984133",
+      "16984134",
+      "69666165",
+      "69666166",
+      "69666167",
+      "69666168",
+      "69666169",
+      "77383714",
+      "77563269",
+      "77563270",
+      "944540994",
+      "944540995",
+      "944540996",
+      "944540997",
+      "944540998",
+      "963777345",
+      "963777346",
+      "963777347",
+      "963777348",
+      "963896694",
+      "appointmentscheduled",
+      "contractsent",
+      "decisionmakerboughtin",
+      "presentationscheduled",
+      "qualifiedtobuy"
+    ],
+    "region_targets_json": null
+  },
+  "metrics": {
+    "company_totals": {
+      "won_revenue_ytd": 1549224028.8,
+      "qualified_pipeline": 58550912.68,
+      "next_90d_forecast": 8598347.0
+    },
+    "region_breakdown": [
+      {
+        "region": "CHN",
+        "won_revenue_ytd": 0.0,
+        "qualified_pipeline": 450740.0,
+        "next_90d_forecast": 0.0,
+        "pipeline_coverage": null,
+        "region_owner": "jiajun chen",
+        "source_region_values": [
+          "china",
+          "cn",
+          "hong kong",
+          "taiwan, province of china"
+        ]
+      },
+      {
+        "region": "GKA",
+        "won_revenue_ytd": 403400.0,
+        "qualified_pipeline": 37419205.0,
+        "next_90d_forecast": 7298347.0,
+        "pipeline_coverage": null,
+        "region_owner": "Miracle Comia",
+        "source_region_values": [
+          "asia pacific",
+          "australia",
+          "bhutan",
+          "canada",
+          "denmark",
+          "dki jakarta",
+          "france",
+          "germany",
+          "india",
+          "japan",
+          "korea, republic of",
+          "lithuania",
+          "mongolia",
+          "netherlands",
+          "nigeria",
+          "pakistan",
+          "pt",
+          "spain",
+          "sweden",
+          "switzerland",
+          "thaialnd",
+          "turkey",
+          "united arab emirates",
+          "united kingdom",
+          "united states",
+          "unknown",
+          "us",
+          "usa",
+          "viet nam",
+          "vietnam"
+        ]
+      },
+      {
+        "region": "IDO",
+        "won_revenue_ytd": 1547888500.0,
+        "qualified_pipeline": 4560750.0,
+        "next_90d_forecast": 1500.0,
+        "pipeline_coverage": null,
+        "region_owner": "214698628",
+        "source_region_values": [
+          "indonesia"
+        ]
+      },
+      {
+        "region": "LAT",
+        "won_revenue_ytd": 0.0,
+        "qualified_pipeline": 1736000.0,
+        "next_90d_forecast": 150000.0,
+        "pipeline_coverage": null,
+        "region_owner": "du yu ning",
+        "source_region_values": [
+          "argentina",
+          "brazil",
+          "chile",
+          "colombia",
+          "mexico",
+          "peru"
+        ]
+      },
+      {
+        "region": "MYS",
+        "won_revenue_ytd": 29560.8,
+        "qualified_pipeline": 693109.68,
+        "next_90d_forecast": 0.0,
+        "pipeline_coverage": null,
+        "region_owner": "Allan Ong",
+        "source_region_values": [
+          "malaysia"
+        ]
+      },
+      {
+        "region": "PHL",
+        "won_revenue_ytd": 882568.0,
+        "qualified_pipeline": 10037130.0,
+        "next_90d_forecast": 493500.0,
+        "pipeline_coverage": null,
+        "region_owner": "259141037",
+        "source_region_values": [
+          "philippines"
+        ]
+      },
+      {
+        "region": "SGP",
+        "won_revenue_ytd": 20000.0,
+        "qualified_pipeline": 1027578.0,
+        "next_90d_forecast": 350000.0,
+        "pipeline_coverage": null,
+        "region_owner": "148700495",
+        "source_region_values": [
+          "singapore"
+        ]
+      },
+      {
+        "region": "THI",
+        "won_revenue_ytd": 0.0,
+        "qualified_pipeline": 2626400.0,
+        "next_90d_forecast": 305000.0,
+        "pipeline_coverage": null,
+        "region_owner": "139576699",
+        "source_region_values": [
+          "thailand"
+        ]
+      }
+    ]
+  },
+  "data_quality": {
+    "region_normalization_map": {
+      "IDO": [
+        "indonesia"
+      ],
+      "SGP": [
+        "singapore"
+      ],
+      "GKA": [
+        "asia pacific",
+        "australia",
+        "bhutan",
+        "canada",
+        "denmark",
+        "dki jakarta",
+        "france",
+        "germany",
+        "india",
+        "japan",
+        "korea, republic of",
+        "lithuania",
+        "mongolia",
+        "netherlands",
+        "nigeria",
+        "pakistan",
+        "pt",
+        "spain",
+        "sweden",
+        "switzerland",
+        "thaialnd",
+        "turkey",
+        "united arab emirates",
+        "united kingdom",
+        "united states",
+        "unknown",
+        "us",
+        "usa",
+        "viet nam",
+        "vietnam"
+      ],
+      "PHL": [
+        "philippines"
+      ],
+      "MYS": [
+        "malaysia"
+      ],
+      "THI": [
+        "thailand"
+      ],
+      "CHN": [
+        "china",
+        "cn",
+        "hong kong",
+        "taiwan, province of china"
+      ],
+      "LAT": [
+        "argentina",
+        "brazil",
+        "chile",
+        "colombia",
+        "mexico",
+        "peru"
+      ]
+    }
+  },
+  "notes": [
+    "Commercial metrics from HubSpot are not finance recognized revenue.",
+    "Revenue Actual YTD remains from Lark/Finance source chain."
+  ]
+}
