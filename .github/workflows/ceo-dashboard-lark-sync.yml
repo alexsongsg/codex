@@ -48,12 +48,16 @@ jobs:
           LARK_APP_SECRET: ${{ secrets.LARK_APP_SECRET }}
           LARK_SPREADSHEET_TOKEN: ${{ secrets.LARK_SPREADSHEET_TOKEN }}
           LARK_SHEET_ID: ${{ secrets.LARK_SHEET_ID }}
+          LARK_REVENUE_CELL: ${{ secrets.LARK_REVENUE_CELL }}
           LARK_REVENUE_TABLE_RANGE: ${{ secrets.LARK_REVENUE_TABLE_RANGE }}
           LARK_REVENUE_DATE_COLUMN: ${{ secrets.LARK_REVENUE_DATE_COLUMN }}
           LARK_REVENUE_AMOUNT_COLUMN: ${{ secrets.LARK_REVENUE_AMOUNT_COLUMN }}
           CEO_DASHBOARD_CURRENCY: ${{ secrets.CEO_DASHBOARD_CURRENCY }}
           LARK_RECOGNIZED_ROW_LABEL_COLUMN: ${{ secrets.LARK_RECOGNIZED_ROW_LABEL_COLUMN }}
           LARK_RECOGNIZED_ROW_LABEL_VALUE: ${{ secrets.LARK_RECOGNIZED_ROW_LABEL_VALUE }}
+          LARK_BASELINE_AS_OF_DATE: ${{ secrets.LARK_BASELINE_AS_OF_DATE }}
+          LARK_BASELINE_EXPECTED_VALUE: ${{ secrets.LARK_BASELINE_EXPECTED_VALUE }}
+          LARK_BASELINE_TOLERANCE: ${{ secrets.LARK_BASELINE_TOLERANCE }}
         run: |
           set -euo pipefail
 
@@ -87,6 +91,73 @@ jobs:
           fi
 
           python scripts/sync_ceo_dashboard_from_lark.py "${args[@]}" | tee sync-output.json
+
+      - name: Validate baseline (optional)
+        if: always()
+        shell: bash
+        env:
+          LARK_BASELINE_AS_OF_DATE: ${{ secrets.LARK_BASELINE_AS_OF_DATE }}
+          LARK_BASELINE_EXPECTED_VALUE: ${{ secrets.LARK_BASELINE_EXPECTED_VALUE }}
+          LARK_BASELINE_TOLERANCE: ${{ secrets.LARK_BASELINE_TOLERANCE }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          baseline_date = (os.getenv("LARK_BASELINE_AS_OF_DATE") or "").strip()
+          expected_raw = (os.getenv("LARK_BASELINE_EXPECTED_VALUE") or "").strip()
+          tolerance_raw = (os.getenv("LARK_BASELINE_TOLERANCE") or "").strip()
+          if not baseline_date or not expected_raw:
+              print("Baseline validation skipped (set LARK_BASELINE_AS_OF_DATE and LARK_BASELINE_EXPECTED_VALUE to enable).")
+              raise SystemExit(0)
+
+          tolerance = float(tolerance_raw) if tolerance_raw else 1.0
+          expected = float(expected_raw)
+
+          payload = None
+          source_latest = pathlib.Path("reports/ceo_dashboard/source_latest.json")
+          sync_output = pathlib.Path("sync-output.json")
+          if source_latest.exists():
+              payload = json.loads(source_latest.read_text(encoding="utf-8"))
+          elif sync_output.exists():
+              text = sync_output.read_text(encoding="utf-8")
+              decoder = json.JSONDecoder()
+              idx = 0
+              while idx < len(text) and text[idx].isspace():
+                  idx += 1
+              payload, _ = decoder.raw_decode(text, idx)
+          else:
+              print("Baseline validation skipped (no output payload found).")
+              raise SystemExit(0)
+
+          metrics = payload.get("metrics", [])
+          if not metrics:
+              print("Baseline validation failed: no metrics in payload.")
+              raise SystemExit(1)
+
+          metric = metrics[0]
+          got_date = str(metric.get("as_of_date", "")).strip()
+          got_value = float(metric.get("value"))
+
+          if got_date != baseline_date:
+              print(f"Baseline validation skipped (as_of_date={got_date}, baseline={baseline_date}).")
+              raise SystemExit(0)
+
+          diff = abs(got_value - expected)
+          if diff > tolerance:
+              print(
+                  f"Baseline validation failed: got={got_value}, expected={expected}, "
+                  f"diff={diff}, tolerance={tolerance}"
+              )
+              raise SystemExit(1)
+
+          print(
+              f"Baseline validation passed: got={got_value}, expected={expected}, "
+              f"diff={diff}, tolerance={tolerance}"
+          )
+          PY
 
       - name: Render dashboard entry HTML
         if: always()
