@@ -48,7 +48,6 @@ jobs:
           LARK_APP_SECRET: ${{ secrets.LARK_APP_SECRET }}
           LARK_SPREADSHEET_TOKEN: ${{ secrets.LARK_SPREADSHEET_TOKEN }}
           LARK_SHEET_ID: ${{ secrets.LARK_SHEET_ID }}
-          LARK_REVENUE_CELL: ${{ secrets.LARK_REVENUE_CELL }}
           LARK_REVENUE_TABLE_RANGE: ${{ secrets.LARK_REVENUE_TABLE_RANGE }}
           LARK_REVENUE_DATE_COLUMN: ${{ secrets.LARK_REVENUE_DATE_COLUMN }}
           LARK_REVENUE_AMOUNT_COLUMN: ${{ secrets.LARK_REVENUE_AMOUNT_COLUMN }}
