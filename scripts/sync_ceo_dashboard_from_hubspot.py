@@ -95,6 +95,20 @@ def parse_hs_datetime(value: Any) -> dt.datetime | None:
         return None
 
 
+def parse_probability(value: Any) -> float:
+    raw = parse_number(value)
+    if raw <= 0:
+        return 0.0
+    # HubSpot probability can be 0-1 or 0-100.
+    if raw > 1:
+        raw = raw / 100.0
+    if raw < 0:
+        return 0.0
+    if raw > 1:
+        return 1.0
+    return raw
+
+
 def iso_utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
 
@@ -218,6 +232,82 @@ def build_pipeline_stage_maps(
     return stage_map, won_stages, closed_stages
 
 
+def normalize_text(value: str) -> str:
+    return " ".join((value or "").strip().lower().split())
+
+
+def normalize_region_code(raw_region: str, raw_country: str) -> tuple[str, str]:
+    text = normalize_text(raw_region)
+    country = normalize_text(raw_country)
+
+    # LAT bucket
+    lat_aliases = {
+        "argentina",
+        "brazil",
+        "brasil",
+        "chile",
+        "colombia",
+        "mexico",
+        "peru",
+    }
+    # China bucket
+    chn_aliases = {
+        "china",
+        "cn",
+        "hong kong",
+        "taiwan",
+        "taiwan, province of china",
+        "macao",
+        "macau",
+    }
+    # Direct buckets
+    if text in {"singapore", "sg", "sgp"} or country in {"singapore", "sg", "sgp"}:
+        return "SGP", text or country
+    if text in {"malaysia", "my", "mys"} or country in {"malaysia", "my", "mys"}:
+        return "MYS", text or country
+    if text in {"philippines", "ph", "phl"} or country in {"philippines", "ph", "phl"}:
+        return "PHL", text or country
+    if text in {"thailand", "thaialnd", "thai", "th", "thi"} or country in {
+        "thailand",
+        "th",
+        "thi",
+    }:
+        return "THI", text or country
+    if text in {"indonesia", "id", "ido", "dki jakarta"} or country in {
+        "indonesia",
+        "id",
+        "ido",
+    }:
+        return "IDO", text or country
+    if text in chn_aliases or country in chn_aliases:
+        return "CHN", text or country
+    if text in lat_aliases or country in lat_aliases:
+        return "LAT", text or country
+    if not text and not country:
+        return "GKA", "unknown"
+    return "GKA", text or country
+
+
+def is_deal_won(props: dict[str, Any], stage_id: str, stage_map: dict[str, dict[str, Any]], won_stages: set[str]) -> bool:
+    if stage_id in won_stages:
+        return True
+
+    # Explicit won flags from properties (if configured in portal).
+    for key in ("hs_is_closed_won", "is_closed_won", "closed_won"):
+        val = str(props.get(key, "")).strip().lower()
+        if val in {"true", "1", "yes"}:
+            return True
+
+    # Fallback by stage id/label naming.
+    sid = (stage_id or "").lower()
+    if "won" in sid and "lost" not in sid:
+        return True
+    stage_label = str(stage_map.get(stage_id, {}).get("label", "")).strip().lower()
+    if "won" in stage_label and "lost" not in stage_label:
+        return True
+    return False
+
+
 def pick_company_id_from_deal(deal: dict[str, Any]) -> str | None:
     assoc = deal.get("associations", {}) or {}
     companies = assoc.get("companies", {}) or {}
@@ -245,6 +335,7 @@ def derive_metrics(
     deals: list[dict[str, Any]],
     company_map: dict[str, dict[str, Any]],
     owner_map: dict[str, dict[str, Any]],
+    stage_map: dict[str, dict[str, Any]],
     won_stages: set[str],
     qualified_stage_ids: set[str],
     as_of_date: dt.date,
@@ -254,40 +345,51 @@ def derive_metrics(
     ytd_start = dt.datetime(as_of_date.year, 1, 1, tzinfo=dt.timezone.utc)
     ytd_end = dt.datetime.combine(as_of_date, dt.time.max, tzinfo=dt.timezone.utc)
     n90_end = dt.datetime.combine(as_of_date + dt.timedelta(days=90), dt.time.max, tzinfo=dt.timezone.utc)
+    n90_start = dt.datetime.combine(as_of_date, dt.time.min, tzinfo=dt.timezone.utc)
 
     region_won_ytd: dict[str, float] = {}
     region_qualified_pipeline: dict[str, float] = {}
     region_n90_forecast: dict[str, float] = {}
     region_owner: dict[str, str] = {}
+    region_raw_tags: dict[str, set[str]] = {}
 
     for deal in deals:
         props = deal.get("properties", {}) or {}
         stage = str(props.get("dealstage", "") or "")
         amount = parse_number(props.get("amount"))
         close_dt = parse_hs_datetime(props.get("closedate"))
+        modified_dt = parse_hs_datetime(props.get("hs_lastmodifieddate"))
+        forecast_category = str(props.get("forecast_category", "") or "").strip().lower()
+        forecast_prob = parse_probability(props.get("hs_forecast_probability"))
         owner_id = str(props.get("hubspot_owner_id", "") or "")
 
         company_id = pick_company_id_from_deal(deal)
         company = company_map.get(company_id or "", {})
-        region = (
-            str(company.get("properties", {}).get("region_code", "") or "").strip()
-            or str(company.get("properties", {}).get("country", "") or "UNKNOWN").strip()
-        )
+        company_props = company.get("properties", {}) or {}
+        raw_region = str(company_props.get("region_code", "") or "").strip()
+        raw_country = str(company_props.get("country", "") or "").strip()
+        region, source_tag = normalize_region_code(raw_region=raw_region, raw_country=raw_country)
+        region_raw_tags.setdefault(region, set()).add(source_tag or "unknown")
 
         if owner_id and region not in region_owner:
             owner = owner_map.get(owner_id, {})
             region_owner[region] = owner.get("firstName", "") + " " + owner.get("lastName", "")
             region_owner[region] = region_owner[region].strip() or owner.get("email", "") or owner_id
 
-        if stage in won_stages and close_dt and ytd_start <= close_dt <= ytd_end:
-            region_won_ytd[region] = region_won_ytd.get(region, 0.0) + amount
+        if is_deal_won(props=props, stage_id=stage, stage_map=stage_map, won_stages=won_stages):
+            won_dt = close_dt or modified_dt
+            if won_dt and ytd_start <= won_dt <= ytd_end:
+                region_won_ytd[region] = region_won_ytd.get(region, 0.0) + amount
 
         if stage in qualified_stage_ids:
             region_qualified_pipeline[region] = region_qualified_pipeline.get(region, 0.0) + amount
-            if close_dt and close_dt <= n90_end and close_dt >= dt.datetime.combine(
-                as_of_date, dt.time.min, tzinfo=dt.timezone.utc
-            ):
+            # Primary next-90 logic: close date in next 90 days.
+            if close_dt and n90_start <= close_dt <= n90_end:
                 region_n90_forecast[region] = region_n90_forecast.get(region, 0.0) + amount
+            # Fallback: missing close date, use forecast category + probability.
+            elif close_dt is None and forecast_category in {"commit", "bestcase", "best_case"}:
+                weight = forecast_prob if forecast_prob > 0 else (1.0 if forecast_category == "commit" else 0.6)
+                region_n90_forecast[region] = region_n90_forecast.get(region, 0.0) + (amount * weight)
 
     region_pipeline_coverage: dict[str, float | None] = {}
     for region, pipeline_amt in region_qualified_pipeline.items():
@@ -313,6 +415,7 @@ def derive_metrics(
                 "next_90d_forecast": round(region_n90_forecast.get(r, 0.0), 2),
                 "pipeline_coverage": region_pipeline_coverage.get(r),
                 "region_owner": region_owner.get(r, ""),
+                "source_region_values": sorted(region_raw_tags.get(r, set())),
             }
         )
 
@@ -350,6 +453,7 @@ def derive_metrics(
         "totals": totals,
         "regions": region_rows,
         "history_rows": history_rows,
+        "region_raw_tags": {k: sorted(v) for k, v in region_raw_tags.items()},
     }
 
 
@@ -466,6 +570,7 @@ def main() -> int:
         deals=deals,
         company_map=company_map,
         owner_map=owner_map,
+        stage_map=stage_map,
         won_stages=won_stages,
         qualified_stage_ids=qualified_stage_ids,
         as_of_date=as_of,
@@ -496,6 +601,9 @@ def main() -> int:
         "metrics": {
             "company_totals": derived["totals"],
             "region_breakdown": derived["regions"],
+        },
+        "data_quality": {
+            "region_normalization_map": derived.get("region_raw_tags", {}),
         },
         "notes": [
             "Commercial metrics from HubSpot are not finance recognized revenue.",
