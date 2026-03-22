@@ -196,6 +196,18 @@ def eval_sum_formula(
     return total
 
 
+def maybe_eval_formula_number(raw: Any, values: list[list[Any]], window: A1Window | None) -> Any:
+    if window is None or not isinstance(raw, str):
+        return raw
+    normalized = raw.lstrip()
+    # Some sheet APIs return formulas as "'=SUM(...)".
+    if normalized.startswith("'"):
+        normalized = normalized[1:].lstrip()
+    if not normalized.startswith("="):
+        return raw
+    return eval_sum_formula(normalized, values=values, window=window)
+
+
 def parse_date(value: Any) -> dt.date:
     if isinstance(value, dt.date):
         return value
@@ -326,8 +338,7 @@ def compute_from_recognized_finals_row(
         raw = target_row[idx]
         if raw in ("", None):
             continue
-        if table_window is not None and isinstance(raw, str) and raw.lstrip().startswith("="):
-            raw = eval_sum_formula(raw, values=values, window=table_window)
+        raw = maybe_eval_formula_number(raw, values=values, window=table_window)
         found_any_month_final = True
         total += parse_number(raw)
 
