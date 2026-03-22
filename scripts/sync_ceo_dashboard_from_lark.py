@@ -29,6 +29,14 @@ class LarkApiError(RuntimeError):
     pass
 
 
+@dataclass
+class A1Window:
+    start_row: int
+    start_col: int
+    end_row: int
+    end_col: int
+
+
 def env_or_arg(value: str | None, env_name: str) -> str | None:
     if value:
         return value
@@ -99,6 +107,93 @@ def parse_number(value: Any) -> float:
     if cleaned in {"", "-", ".", "-."}:
         raise ValueError(f"invalid numeric value: {value}")
     return float(cleaned)
+
+
+def col_letters_to_num(col: str) -> int:
+    num = 0
+    for ch in col.upper():
+        if not ("A" <= ch <= "Z"):
+            raise ValueError(f"invalid column letters: {col}")
+        num = num * 26 + (ord(ch) - ord("A") + 1)
+    return num
+
+
+def parse_a1_cell_ref(ref: str) -> tuple[int, int]:
+    match = re.fullmatch(r"\$?([A-Za-z]+)\$?(\d+)", ref.strip())
+    if not match:
+        raise ValueError(f"invalid A1 cell ref: {ref}")
+    col_letters, row_num = match.group(1), match.group(2)
+    return int(row_num), col_letters_to_num(col_letters)
+
+
+def parse_a1_window(a1_range: str) -> A1Window:
+    target = a1_range.strip()
+    if "!" in target:
+        target = target.split("!", 1)[1]
+    if ":" in target:
+        start_ref, end_ref = target.split(":", 1)
+    else:
+        start_ref = target
+        end_ref = target
+    start_row, start_col = parse_a1_cell_ref(start_ref)
+    end_row, end_col = parse_a1_cell_ref(end_ref)
+    if end_row < start_row or end_col < start_col:
+        raise ValueError(f"invalid A1 range order: {a1_range}")
+    return A1Window(
+        start_row=start_row,
+        start_col=start_col,
+        end_row=end_row,
+        end_col=end_col,
+    )
+
+
+def matrix_value_at_a1(values: list[list[Any]], window: A1Window, row: int, col: int) -> Any:
+    row_idx = row - window.start_row
+    col_idx = col - window.start_col
+    if row_idx < 0 or col_idx < 0:
+        return None
+    if row_idx >= len(values):
+        return None
+    if col_idx >= len(values[row_idx]):
+        return None
+    return values[row_idx][col_idx]
+
+
+def eval_sum_formula(
+    formula: str,
+    values: list[list[Any]],
+    window: A1Window,
+) -> float:
+    match = re.fullmatch(r"\s*=\s*SUM\((.+)\)\s*", formula, re.I)
+    if not match:
+        raise ValueError(f"unsupported formula in numeric field: {formula}")
+    args_text = match.group(1)
+    total = 0.0
+    for token in [x.strip() for x in args_text.split(",") if x.strip()]:
+        if ":" in token:
+            start_ref, end_ref = token.split(":", 1)
+            start_row, start_col = parse_a1_cell_ref(start_ref)
+            end_row, end_col = parse_a1_cell_ref(end_ref)
+            if end_row < start_row or end_col < start_col:
+                raise ValueError(f"invalid SUM range token: {token}")
+            for r in range(start_row, end_row + 1):
+                for c in range(start_col, end_col + 1):
+                    raw = matrix_value_at_a1(values, window, r, c)
+                    if raw in ("", None):
+                        continue
+                    total += parse_number(raw)
+            continue
+        # token can be a single cell ref or a numeric literal
+        try:
+            row, col = parse_a1_cell_ref(token)
+            raw = matrix_value_at_a1(values, window, row, col)
+            if raw not in ("", None):
+                total += parse_number(raw)
+            continue
+        except ValueError:
+            pass
+        total += parse_number(token)
+    return total
 
 
 def parse_date(value: Any) -> dt.date:
@@ -196,6 +291,7 @@ def compute_from_recognized_finals_row(
     row_label_column: str,
     row_label_value: str,
     as_of_date: dt.date,
+    table_window: A1Window | None = None,
 ) -> float:
     if len(values) < 2:
         raise ValueError("recognized table range must include header and data rows")
@@ -230,6 +326,8 @@ def compute_from_recognized_finals_row(
         raw = target_row[idx]
         if raw in ("", None):
             continue
+        if table_window is not None and isinstance(raw, str) and raw.lstrip().startswith("="):
+            raw = eval_sum_formula(raw, values=values, window=table_window)
         found_any_month_final = True
         total += parse_number(raw)
 
@@ -366,11 +464,13 @@ def main() -> int:
         else:
             target_range = f"{sheet_id}!{args.table_range}"
             values = fetch_sheet_range(token, spreadsheet_token, target_range)
+            table_window = parse_a1_window(args.table_range)
             metric_value = compute_from_recognized_finals_row(
                 values=values,
                 row_label_column=args.recognized_row_label_column,
                 row_label_value=args.recognized_row_label_value,
                 as_of_date=as_of,
+                table_window=table_window,
             )
             source_ref = (
                 f"{spreadsheet_token}/{target_range}"
