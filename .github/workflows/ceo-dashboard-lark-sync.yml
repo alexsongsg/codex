@@ -22,8 +22,8 @@ on:
         type: boolean
         default: false
   schedule:
+    # Monday-Friday 01:15 UTC
     - cron: "15 1 * * 1-5"
-
 
 permissions:
   contents: read
@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: "3.11"
 
-           - name: Run Lark sync
+      - name: Run Lark sync
         shell: bash
         env:
           LARK_APP_ID: ${{ secrets.LARK_APP_ID }}
@@ -89,6 +89,28 @@ jobs:
 
           python scripts/sync_ceo_dashboard_from_lark.py "${args[@]}" | tee sync-output.json
 
+      - name: Render dashboard entry HTML
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_ceo_dashboard_index_html.py \
+            --lark-json "reports/ceo_dashboard/source_latest.json" \
+            --lark-history-csv "reports/ceo_dashboard/revenue_actual_ytd_history.csv" \
+            --hubspot-json "reports/ceo_dashboard/hubspot_source_latest.json" \
+            --output "reports/ceo_dashboard/index.html"
+
+      - name: Upload sync outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceo-dashboard-lark-sync
+          path: |
+            sync-output.json
+            reports/ceo_dashboard/source_latest.json
+            reports/ceo_dashboard/revenue_actual_ytd_history.csv
+            reports/ceo_dashboard/index.html
+
       - name: Write run summary
         if: always()
         shell: bash
@@ -96,7 +118,7 @@ jobs:
           {
             echo "## CEO Dashboard Lark Sync"
             echo "- Status: ${{ job.status }}"
-            echo "- Mode: ${{ github.event.inputs.mode || 'cell' }}"
+            echo "- Mode: ${{ github.event.inputs.mode || 'recognized_finals' }}"
             echo "- As-of date: ${{ github.event.inputs.as_of_date || 'runner date' }}"
             echo "- Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
             echo "- Primary metric: Revenue Actual YTD"
