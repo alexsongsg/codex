@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CEO Dashboard - HubSpot Commercial</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --surface: #ffffff;
+      --ink: #0f1b2d;
+      --muted: #5b6b82;
+      --accent: #1264a3;
+      --line: #d7e2ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at top right, #e6f1ff 0%, var(--bg) 55%);
+      color: var(--ink);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+    .head {
+      margin-bottom: 16px;
+    }
+    .title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0 22px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .k {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .v {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f7fbff;
+      color: #33415c;
+      font-weight: 600;
+    }
+    .num {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .src {
+      color: #344860;
+      min-width: 220px;
+    }
+    @media (max-width: 900px) {
+      .cards { grid-template-columns: 1fr; }
+      table { font-size: 12px; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1 class="title">CEO Dashboard - HubSpot Commercial</h1>
+      <div class="sub">As of: 2026-03-22 | Generated at (UTC): 2026-03-22T03:20:46+00:00 | Currency: USD</div>
+    </div>
+
+    <section class="cards">
+      <article class="card">
+        <div class="k">Won Revenue YTD</div>
+        <div class="v">1,549,224,028.80</div>
+      </article>
+      <article class="card">
+        <div class="k">Qualified Pipeline</div>
+        <div class="v">58,550,912.68</div>
+      </article>
+      <article class="card">
+        <div class="k">Next 90d Forecast</div>
+        <div class="v">8,598,347.00</div>
+      </article>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Region</th>
+            <th class="num">Won Revenue YTD</th>
+            <th class="num">Qualified Pipeline</th>
+            <th class="num">Next 90d Forecast</th>
+            <th class="num">Pipeline Coverage</th>
+            <th>Region Owner</th>
+            <th>Source Region Values</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+              <td>CHN</td>
+              <td class="num">0.00</td>
+              <td class="num">450,740.00</td>
+              <td class="num">0.00</td>
+              <td class="num">-</td>
+              <td>jiajun chen</td>
+              <td class="src">china, cn, hong kong, taiwan, province of china</td>
+            </tr>
+<tr>
+              <td>GKA</td>
+              <td class="num">403,400.00</td>
+              <td class="num">37,419,205.00</td>
+              <td class="num">7,298,347.00</td>
+              <td class="num">-</td>
+              <td>Miracle Comia</td>
+              <td class="src">asia pacific, australia, bhutan, canada, denmark, dki jakarta, france, germany, india, japan, korea, republic of, lithuania, mongolia, netherlands, nigeria, pakistan, pt, spain, sweden, switzerland, thaialnd, turkey, united arab emirates, united kingdom, united states, unknown, us, usa, viet nam, vietnam</td>
+            </tr>
+<tr>
+              <td>IDO</td>
+              <td class="num">1,547,888,500.00</td>
+              <td class="num">4,560,750.00</td>
+              <td class="num">1,500.00</td>
+              <td class="num">-</td>
+              <td>214698628</td>
+              <td class="src">indonesia</td>
+            </tr>
+<tr>
+              <td>LAT</td>
+              <td class="num">0.00</td>
+              <td class="num">1,736,000.00</td>
+              <td class="num">150,000.00</td>
+              <td class="num">-</td>
+              <td>du yu ning</td>
+              <td class="src">argentina, brazil, chile, colombia, mexico, peru</td>
+            </tr>
+<tr>
+              <td>MYS</td>
+              <td class="num">29,560.80</td>
+              <td class="num">693,109.68</td>
+              <td class="num">0.00</td>
+              <td class="num">-</td>
+              <td>Allan Ong</td>
+              <td class="src">malaysia</td>
+            </tr>
+<tr>
+              <td>PHL</td>
+              <td class="num">882,568.00</td>
+              <td class="num">10,037,130.00</td>
+              <td class="num">493,500.00</td>
+              <td class="num">-</td>
+              <td>259141037</td>
+              <td class="src">philippines</td>
+            </tr>
+<tr>
+              <td>SGP</td>
+              <td class="num">20,000.00</td>
+              <td class="num">1,027,578.00</td>
+              <td class="num">350,000.00</td>
+              <td class="num">-</td>
+              <td>148700495</td>
+              <td class="src">singapore</td>
+            </tr>
+<tr>
+              <td>THI</td>
+              <td class="num">0.00</td>
+              <td class="num">2,626,400.00</td>
+              <td class="num">305,000.00</td>
+              <td class="num">-</td>
+              <td>139576699</td>
+              <td class="src">thailand</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

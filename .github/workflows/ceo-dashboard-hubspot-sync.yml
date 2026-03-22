@@ -66,6 +66,17 @@ jobs:
 
           python scripts/sync_ceo_dashboard_from_hubspot.py "${args[@]}" | tee hubspot-sync-output.json
 
+      - name: Render dashboard HTML
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          input_path="hubspot-sync-output.json"
+          output_path="reports/ceo_dashboard/hubspot_dashboard_latest.html"
+          python scripts/render_ceo_dashboard_hubspot_html.py \
+            --input "${input_path}" \
+            --output "${output_path}"
+
       - name: Validate sync payload
         shell: bash
         run: |
@@ -126,6 +137,7 @@ jobs:
             hubspot-sync-output.json
             reports/ceo_dashboard/hubspot_source_latest.json
             reports/ceo_dashboard/hubspot_metrics_history.csv
+            reports/ceo_dashboard/hubspot_dashboard_latest.html
 
       - name: Build failure alert context
         if: failure()
@@ -237,6 +249,7 @@ jobs:
             echo "- Dry run: ${{ github.event.inputs.dry_run || 'true' }}"
             echo "- Output JSON: reports/ceo_dashboard/hubspot_source_latest.json"
             echo "- History CSV: reports/ceo_dashboard/hubspot_metrics_history.csv"
+            echo "- Dashboard HTML: reports/ceo_dashboard/hubspot_dashboard_latest.html"
             echo "- Required secret: HUBSPOT_PRIVATE_APP_TOKEN"
             echo "- Optional secret: HUBSPOT_QUALIFIED_STAGE_IDS"
             echo "- Optional secret: HUBSPOT_REGION_TARGETS_JSON"
