@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CEO Dashboard - Finance + Commercial</title>
+  <style>
+    :root {
+      --bg: #f4f8fc;
+      --surface: #ffffff;
+      --ink: #10213c;
+      --muted: #5f708a;
+      --line: #d6e1ef;
+      --accent1: #165d9c;
+      --accent2: #0e7a4b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(135deg, #eef5ff 0%, var(--bg) 60%);
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 22px 14px 36px; }
+    h1 { margin: 0; font-size: 30px; }
+    .meta { color: var(--muted); margin-top: 8px; font-size: 13px; }
+    .grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .panel h2 { margin: 0 0 10px; font-size: 16px; }
+    .kpi-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .kpi-value { margin-top: 6px; font-size: 26px; font-weight: 700; color: var(--accent1); }
+    .stack { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .mini { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+    .mini .v { margin-top: 5px; font-weight: 700; color: var(--accent2); font-size: 18px; }
+    .table-wrap { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; }
+    th { background: #f7fbff; }
+    .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .stack { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CEO Dashboard</h1>
+    <div class="meta">
+      Finance as-of: N/A | HubSpot as-of: 2026-03-22 |
+      HubSpot generated UTC: 2026-03-22T03:20:46+00:00
+    </div>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>Finance (Lark)</h2>
+        <div class="kpi-label">Revenue Actual YTD</div>
+        <div class="kpi-value">N/A</div>
+        <div class="meta">Source: missing</div>
+      </article>
+      <article class="panel">
+        <h2>Commercial (HubSpot)</h2>
+        <div class="stack">
+          <div class="mini">
+            <div class="kpi-label">Won Revenue YTD</div>
+            <div class="v">1,549,224,028.80</div>
+          </div>
+          <div class="mini">
+            <div class="kpi-label">Qualified Pipeline</div>
+            <div class="v">58,550,912.68</div>
+          </div>
+          <div class="mini">
+            <div class="kpi-label">Next 90d Forecast</div>
+            <div class="v">8,598,347.00</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Region</th>
+            <th class="num">Won Revenue YTD</th>
+            <th class="num">Qualified Pipeline</th>
+            <th class="num">Next 90d Forecast</th>
+            <th>Region Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+              <td>CHN</td>
+              <td class="num">0.00</td>
+              <td class="num">450,740.00</td>
+              <td class="num">0.00</td>
+              <td>jiajun chen</td>
+            </tr>
+<tr>
+              <td>GKA</td>
+              <td class="num">403,400.00</td>
+              <td class="num">37,419,205.00</td>
+              <td class="num">7,298,347.00</td>
+              <td>Miracle Comia</td>
+            </tr>
+<tr>
+              <td>IDO</td>
+              <td class="num">1,547,888,500.00</td>
+              <td class="num">4,560,750.00</td>
+              <td class="num">1,500.00</td>
+              <td>214698628</td>
+            </tr>
+<tr>
+              <td>LAT</td>
+              <td class="num">0.00</td>
+              <td class="num">1,736,000.00</td>
+              <td class="num">150,000.00</td>
+              <td>du yu ning</td>
+            </tr>
+<tr>
+              <td>MYS</td>
+              <td class="num">29,560.80</td>
+              <td class="num">693,109.68</td>
+              <td class="num">0.00</td>
+              <td>Allan Ong</td>
+            </tr>
+<tr>
+              <td>PHL</td>
+              <td class="num">882,568.00</td>
+              <td class="num">10,037,130.00</td>
+              <td class="num">493,500.00</td>
+              <td>259141037</td>
+            </tr>
+<tr>
+              <td>SGP</td>
+              <td class="num">20,000.00</td>
+              <td class="num">1,027,578.00</td>
+              <td class="num">350,000.00</td>
+              <td>148700495</td>
+            </tr>
+<tr>
+              <td>THI</td>
+              <td class="num">0.00</td>
+              <td class="num">2,626,400.00</td>
+              <td class="num">305,000.00</td>
+              <td>139576699</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

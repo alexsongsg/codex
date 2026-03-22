@@ -87,6 +87,17 @@ jobs:
 
           python scripts/sync_ceo_dashboard_from_lark.py "${args[@]}" | tee sync-output.json
 
+      - name: Render dashboard entry HTML
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_ceo_dashboard_index_html.py \
+            --lark-json "reports/ceo_dashboard/source_latest.json" \
+            --lark-history-csv "reports/ceo_dashboard/revenue_actual_ytd_history.csv" \
+            --hubspot-json "reports/ceo_dashboard/hubspot_source_latest.json" \
+            --output "reports/ceo_dashboard/index.html"
+
       - name: Upload sync outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +107,7 @@ jobs:
             sync-output.json
             reports/ceo_dashboard/source_latest.json
             reports/ceo_dashboard/revenue_actual_ytd_history.csv
+            reports/ceo_dashboard/index.html
 
       - name: Write run summary
         if: always()
@@ -110,4 +122,5 @@ jobs:
             echo "- Primary metric: Revenue Actual YTD"
             echo "- Output JSON: reports/ceo_dashboard/source_latest.json"
             echo "- History CSV: reports/ceo_dashboard/revenue_actual_ytd_history.csv"
+            echo "- Dashboard Entry: reports/ceo_dashboard/index.html"
           } >> "$GITHUB_STEP_SUMMARY"
