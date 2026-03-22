@@ -66,6 +66,57 @@ jobs:
 
           python scripts/sync_ceo_dashboard_from_hubspot.py "${args[@]}" | tee hubspot-sync-output.json
 
+      - name: Validate sync payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from json import JSONDecoder
+          from pathlib import Path
+
+          allowed_regions = {"GKA", "CHN", "SGP", "MYS", "PHL", "THI", "IDO", "LAT"}
+          output_path = Path("hubspot-sync-output.json")
+          text = output_path.read_text(encoding="utf-8")
+
+          # sync output may include non-JSON tail lines in non-dry runs.
+          decoder = JSONDecoder()
+          payload = None
+          for i, ch in enumerate(text):
+              if ch != "{":
+                  continue
+              try:
+                  payload, _ = decoder.raw_decode(text[i:])
+                  break
+              except json.JSONDecodeError:
+                  continue
+
+          if payload is None:
+              raise SystemExit("Validation failed: no JSON payload found in hubspot-sync-output.json")
+
+          totals = ((payload.get("metrics") or {}).get("company_totals") or {})
+          won_ytd = float(totals.get("won_revenue_ytd") or 0)
+          next90 = float(totals.get("next_90d_forecast") or 0)
+          if won_ytd <= 0:
+              raise SystemExit(f"Validation failed: won_revenue_ytd must be > 0, got {won_ytd}")
+          if next90 <= 0:
+              raise SystemExit(f"Validation failed: next_90d_forecast must be > 0, got {next90}")
+
+          regions = ((payload.get("metrics") or {}).get("region_breakdown") or [])
+          observed = {str(row.get("region") or "").strip() for row in regions if row.get("region")}
+          bad = sorted(r for r in observed if r not in allowed_regions)
+          if bad:
+              raise SystemExit(
+                  "Validation failed: non-CEO region codes found: "
+                  + ",".join(bad)
+              )
+
+          print("Validation passed.")
+          print(f"won_revenue_ytd={won_ytd}")
+          print(f"next_90d_forecast={next90}")
+          print(f"regions={','.join(sorted(observed))}")
+          PY
+
       - name: Upload sync outputs
         if: always()
         uses: actions/upload-artifact@v4
